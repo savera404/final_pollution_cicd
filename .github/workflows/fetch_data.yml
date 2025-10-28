@@ -35,7 +35,7 @@ jobs:
       # 4️⃣ Create .env file from GitHub Secrets
       - name: Set environment variables
         run: |
-          echo "OPENWEATHER_API_KEY=${{ secrets.OPENWEATHER_API_KEY }}" > .env
+          echo "OPENWEATHER_API_KEY=${{ secrets.OPENWEATHER_API_KEY }}" >> .env
 
       # 5️⃣ Run your data fetch script
       - name: Run fetch_data.py
