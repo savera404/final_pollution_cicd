@@ -1,98 +1,72 @@
-import os
-import time
 import requests
 import pandas as pd
-from datetime import datetime, timedelta
+import os
+from datetime import datetime
 from dotenv import load_dotenv
 
-# === Load API key ===
-load_dotenv()
+# ✅ Load .env from root folder
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+
+# ✅ API key from .env
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
-# Karachi coordinates
-LAT, LON = 24.8607, 67.0011
+# ✅ Coordinates for Karachi only
+KARACHI_COORDS = {"lat": 24.8607, "lon": 67.0011}
 
-# Ensure data directory exists
-os.makedirs("data", exist_ok=True)
-
-CSV_PATH = "data/pollution_data.csv"
-
-
-def fetch_data(start, end):
-    """Fetch air pollution data between two UNIX timestamps"""
-    url = f"http://api.openweathermap.org/data/2.5/air_pollution/history?lat={LAT}&lon={LON}&start={start}&end={end}&appid={API_KEY}"
+def fetch_air_quality():
+    """Fetch air quality data for Karachi from OpenWeather API."""
+    url = f"https://api.openweathermap.org/data/2.5/air_pollution?lat={KARACHI_COORDS['lat']}&lon={KARACHI_COORDS['lon']}&appid={API_KEY}"
+    
     response = requests.get(url)
     if response.status_code != 200:
-        print(f"❌ Error {response.status_code} for {datetime.utcfromtimestamp(start)} → {datetime.utcfromtimestamp(end)}")
-        return pd.DataFrame()
-
+        print(f"❌ Failed to fetch data: {response.status_code}, {response.text}")
+        return None
+    
     data = response.json()
-    records = []
-    for item in data.get("list", []):
-        dt = datetime.utcfromtimestamp(item["dt"])
-        records.append({
-            "datetime_utc": dt,
-            "aqi": item["main"]["aqi"],
-            **item["components"]
-        })
-    return pd.DataFrame(records)
-
+    if "list" not in data:
+        print(f"⚠️ No data in response: {data}")
+        return None
+    
+    components = data["list"][0]["components"]
+    aqi = data["list"][0]["main"]["aqi"]
+    timestamp = datetime.utcnow().strftime("%m/%d/%Y %H:%M")
+    
+    return {
+        "datetime_utc": timestamp,
+        "aqi": aqi,
+        "co": components.get("co", 0),
+        "no": components.get("no", 0),
+        "no2": components.get("no2", 0),
+        "o3": components.get("o3", 0),
+        "so2": components.get("so2", 0),
+        "pm2_5": components.get("pm2_5", 0),
+        "pm10": components.get("pm10", 0),
+        "nh3": components.get("nh3", 0),
+    }
 
 def main():
-    if not os.path.exists(CSV_PATH):
-        # === FIRST RUN: Fetch full 2-year (2023–2025) history ===
-        start_time = int(datetime(2023, 1, 1).timestamp())
-        end_time = int(time.time())
-
-        print("📘 Fetching 2023–present historical data for Karachi...")
-
-        df_parts = []
-        step_days = 180
-        current_start = start_time
-
-        while current_start < end_time:
-            current_end = int((datetime.utcfromtimestamp(current_start) + timedelta(days=step_days)).timestamp())
-            if current_end > end_time:
-                current_end = end_time
-
-            df_part = fetch_data(current_start, current_end)
-            df_parts.append(df_part)
-            current_start = current_end
-            time.sleep(1)  # avoid rate limit
-
-        df = pd.concat(df_parts, ignore_index=True)
-        df.drop_duplicates(subset="datetime_utc", inplace=True)
-        df.sort_values("datetime_utc", inplace=True)
-        df.reset_index(drop=True, inplace=True)
-
-        df.to_csv(CSV_PATH, index=False, date_format="%d/%m/%Y %H:%M")
-        print(f"✅ Created new file: {CSV_PATH} with {len(df)} records")
-
+    """Fetch data and save to CSV file."""
+    record = fetch_air_quality()
+    
+    if not record:
+        print("❌ No data fetched.")
+        return
+    
+    # Create DataFrame with single record
+    df = pd.DataFrame([record])
+    print(df)
+    
+    # ✅ Save or append to CSV
+    csv_path = "data/pollution_data.csv"
+    
+    if os.path.exists(csv_path):
+        existing_df = pd.read_csv(csv_path)
+        updated_df = pd.concat([existing_df, df], ignore_index=True)
+        updated_df.to_csv(csv_path, index=False)
+        print("✅ Data appended to existing CSV file.")
     else:
-        # === SUBSEQUENT RUNS: Fetch latest data only ===
-        existing = pd.read_csv(CSV_PATH, parse_dates=["datetime_utc"], dayfirst=True)
-        last_dt = existing["datetime_utc"].max()
-        last_timestamp = int(pd.Timestamp(last_dt).timestamp())
-
-        new_start = last_timestamp + 1
-        new_end = int(time.time())
-
-        print(f"📈 Updating data from {last_dt} to {datetime.utcfromtimestamp(new_end)}...")
-
-        df_new = fetch_data(new_start, new_end)
-
-        if df_new.empty:
-            print("⚠️ No new data found.")
-            return
-
-        combined = pd.concat([existing, df_new], ignore_index=True)
-        combined.drop_duplicates(subset="datetime_utc", inplace=True)
-        combined.sort_values("datetime_utc", inplace=True)
-        combined.reset_index(drop=True, inplace=True)
-
-        combined.to_csv(CSV_PATH, index=False, date_format="%d/%m/%Y %H:%M")
-        print(f"✅ Appended {len(df_new)} new records to {CSV_PATH}")
-
+        df.to_csv(csv_path, index=False)
+        print("✅ New CSV file created and data saved.")
 
 if __name__ == "__main__":
     main()
