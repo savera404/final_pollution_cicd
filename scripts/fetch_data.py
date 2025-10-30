@@ -64,6 +64,6 @@ df = df[df.index % 2 == 0]  # keeps every 3rd record ≈ every 3 hours
 print(f"📈 Total records after 3-hour interval filtering: {len(df)}")
 
 # === Save to CSV ===
-file_path = "/data/2_years.csv"
+file_path = "data/2_years.csv"
 df.to_csv(file_path, index=False)
 print(f"✅ 2-year (3-hour interval) data saved to: {file_path}")
