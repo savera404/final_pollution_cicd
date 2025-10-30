@@ -6,10 +6,9 @@ from dotenv import load_dotenv
 import time
 import sys
 
-# ✅ Load .env from root folder
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-# ✅ API key from .env
+
+# ✅ API key from environment variable (GitHub Actions will set this)
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
 if not API_KEY:
