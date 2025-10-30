@@ -1,25 +1,17 @@
+import sys, os
+
 import requests
 import pandas as pd
 import time
-import os
-import sys
 from datetime import datetime, timedelta
 
-# ✅ API key from environment variable (for GitHub Actions)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except:
-    pass
+
+LAT=24.8607
+LON=67.0011
 
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
-if not API_KEY:
-    print("❌ ERROR: OPENWEATHER_API_KEY not found in environment variables!")
-    sys.exit(1)
 
-LAT = 24.8607
-LON = 67.0011
 
 # === Ensure output folder exists ===
 os.makedirs("data", exist_ok=True)
@@ -72,6 +64,6 @@ df = df[df.index % 2 == 0]  # keeps every 3rd record ≈ every 3 hours
 print(f"📈 Total records after 3-hour interval filtering: {len(df)}")
 
 # === Save to CSV ===
-file_path = "data/2_years.csv"
+file_path = "/data/2_years.csv"
 df.to_csv(file_path, index=False)
 print(f"✅ 2-year (3-hour interval) data saved to: {file_path}")
