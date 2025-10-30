@@ -5,9 +5,6 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # ✅ Load .env from root folder
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
-
-# ✅ API key from .env
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
 # ✅ Coordinates for Karachi only
