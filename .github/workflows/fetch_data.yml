@@ -1,0 +1,51 @@
+name: Fetch Air Pollution Data
+
+on:
+  schedule:
+    # Run every 5 hours
+    - cron: "0 */3 * * *"
+    # - cron: "*/5 * * * *"  # every 5 minutes
+
+  workflow_dispatch:  # allows manual trigger from GitHub UI
+
+permissions:
+  contents: write  # ✅ allows pushing updates to repo
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout your repo
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2️⃣ Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # 3️⃣ Install dependencies (if you have a requirements.txt)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4️⃣ Create .env file from GitHub Secrets
+      - name: Set environment variables
+        run: |
+          echo "OPENWEATHER_API_KEY=${{ secrets.OPENWEATHER_API_KEY }}" >> .env
+
+      # 5️⃣ Run your data fetch script
+      - name: Run fetch_data.py
+        run: python scripts/fetch_data.py
+
+      # 6️⃣ Commit and push changes back to the repo
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Auto update pollution data" || echo "No changes to commit"
+          git push
