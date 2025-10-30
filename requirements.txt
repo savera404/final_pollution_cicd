@@ -4,3 +4,4 @@ hopsworks
 scikit-learn
 joblib
 dotenv
+datetime
