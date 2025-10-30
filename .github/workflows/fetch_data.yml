@@ -1,4 +1,3 @@
-
 name: Fetch Pollution Data
 
 on:
@@ -22,11 +21,8 @@ jobs:
         
     - name: Install dependencies
       run: |
-        pip install requests pandas python-dotenv
+        pip install requests pandas
         
-    - name: Create data directory
-      run: mkdir -p data
-      
     - name: Fetch pollution data
       env:
         OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
@@ -37,5 +33,5 @@ jobs:
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git add data/pollution_data.csv
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Update pollution data [automated]" && git push)
+        git add data/2_years.csv
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Update pollution data - $(date -u +'%Y-%m-%d %H:%M UTC')" && git push)
