@@ -945,17 +945,26 @@ def upload_to_hopsworks(df, feature_group_name="karachi_air_quality_features", v
         print(f"\n🔍 Validating DataFrame before upload...")
         df_upload = validate_dataframe_for_hopsworks(df)
 
-        # Add unique ID if not present
-        if 'id' not in df_upload.columns:
-            df_upload.insert(0, 'id', range(1, len(df_upload) + 1))
-            print(f"   ✓ Added unique ID column")
+        # # Add unique ID if not present
+        # if 'id' not in df_upload.columns:
+        #     df_upload.insert(0, 'id', range(1, len(df_upload) + 1))
+        #     print(f"   ✓ Added unique ID column")
 
         # Convert datetime to timestamp (int64) for better compatibility
         if 'datetime_utc' in df_upload.columns:
-            # Convert to pandas datetime first if not already
+            # # Convert to pandas datetime first if not already
+            # df_upload['datetime_utc'] = pd.to_datetime(df_upload['datetime_utc'], errors='coerce')
+            # # Convert to Unix timestamp (milliseconds)
+            # df_upload['datetime_utc'] = df_upload['datetime_utc'].astype('int64') // 10**6
+            # Convert only if needed
+        if not np.issubdtype(df_upload['datetime_utc'].dtype, np.number):
             df_upload['datetime_utc'] = pd.to_datetime(df_upload['datetime_utc'], errors='coerce')
-            # Convert to Unix timestamp (milliseconds)
-            df_upload['datetime_utc'] = df_upload['datetime_utc'].astype('int64') // 10**6
+            df_upload = df_upload.dropna(subset=['datetime_utc'])
+            df_upload['datetime_utc'] = (df_upload['datetime_utc'].astype('int64') // 10**6).astype('int64')
+            print(f"   ✓ Converted datetime_utc to timestamp")
+        else:
+            print(f"   ⚠️ datetime_utc already numeric, skipping reconversion")
+
             print(f"   ✓ Converted datetime to timestamp")
 
         # Handle categorical columns - convert to string explicitly
@@ -1200,18 +1209,25 @@ def complete_eda_and_upload_pipeline(df_processed, selected_features_count=20):
     )
 
     # Step 3: Prepare final dataset with selected features
-    final_cols = ['id'] if 'id' in df_processed.columns else []
-    final_cols += ['datetime_utc'] if 'datetime_utc' in df_processed.columns else []
-    final_cols += selected_features + ['aqi', 'aqi_category', 'dominant_pollutant']
+    # final_cols = ['id'] if 'id' in df_processed.columns else []
+    # final_cols += ['datetime_utc'] if 'datetime_utc' in df_processed.columns else []
+    # final_cols += selected_features + ['aqi', 'aqi_category', 'dominant_pollutant']
 
+    # df_final = df_processed[final_cols].copy()
+
+    # Prepare final columns (no need for 'id' anymore)
+    final_cols = ['datetime_utc'] if 'datetime_utc' in df_processed.columns else []
+    final_cols += selected_features + ['aqi', 'aqi_category', 'dominant_pollutant']
+    
     df_final = df_processed[final_cols].copy()
+
 
     print(f"\n📦 Final dataset prepared with {len(df_final.columns)} columns")
 
     # Step 4: Upload to Hopsworks
     feature_group = upload_to_hopsworks(
         df_final,
-        feature_group_name="air_quality_features",
+        feature_group_name="karachi_air_quality_features",
         version=1
     )
 
@@ -1243,5 +1259,6 @@ if __name__ == "__main__":
     print("5. ⏭️  Ready for Part 3: Model Training & Deployment")
 
     print("="*70)
+
 
 
