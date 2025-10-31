@@ -957,15 +957,15 @@ def upload_to_hopsworks(df, feature_group_name="karachi_air_quality_features", v
             # # Convert to Unix timestamp (milliseconds)
             # df_upload['datetime_utc'] = df_upload['datetime_utc'].astype('int64') // 10**6
             # Convert only if needed
-        if not np.issubdtype(df_upload['datetime_utc'].dtype, np.number):
-            df_upload['datetime_utc'] = pd.to_datetime(df_upload['datetime_utc'], errors='coerce')
-            df_upload = df_upload.dropna(subset=['datetime_utc'])
-            df_upload['datetime_utc'] = (df_upload['datetime_utc'].astype('int64') // 10**6).astype('int64')
-            print(f"   ✓ Converted datetime_utc to timestamp")
-        else:
-            print(f"   ⚠️ datetime_utc already numeric, skipping reconversion")
-
-            print(f"   ✓ Converted datetime to timestamp")
+            if not np.issubdtype(df_upload['datetime_utc'].dtype, np.number):
+                df_upload['datetime_utc'] = pd.to_datetime(df_upload['datetime_utc'], errors='coerce')
+                df_upload = df_upload.dropna(subset=['datetime_utc'])
+                df_upload['datetime_utc'] = (df_upload['datetime_utc'].astype('int64') // 10**6).astype('int64')
+                print(f"   ✓ Converted datetime_utc to timestamp")
+            else:
+                print(f"   ⚠️ datetime_utc already numeric, skipping reconversion")
+    
+                print(f"   ✓ Converted datetime to timestamp")
 
         # Handle categorical columns - convert to string explicitly
         categorical_cols = df_upload.select_dtypes(include=['object', 'category']).columns.tolist()
@@ -1259,6 +1259,7 @@ if __name__ == "__main__":
     print("5. ⏭️  Ready for Part 3: Model Training & Deployment")
 
     print("="*70)
+
 
 
 
