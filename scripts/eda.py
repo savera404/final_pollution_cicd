@@ -1062,7 +1062,11 @@ def fetch_from_hopsworks(feature_group_name="air_quality_features", version=1):
         print("\n🔐 Connecting to Hopsworks...")
 
         # Login to Hopsworks
-        project = hopsworks.login(api_key_value=os.getenv("HOPSWORKS_API_KEY"))
+        # project = hopsworks.login(api_key_value=os.getenv("HOPSWORKS_API_KEY"))
+        project = hopsworks.login(
+            project="pollution_cicd",
+            api_key_value=os.getenv("HOPSWORKS_API_KEY")
+         )
         print(f"   ✓ Connected to project: {project.name}")
 
         # Get feature store
@@ -1239,3 +1243,4 @@ if __name__ == "__main__":
     print("5. ⏭️  Ready for Part 3: Model Training & Deployment")
 
     print("="*70)
+
