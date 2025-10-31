@@ -902,7 +902,7 @@ def validate_dataframe_for_hopsworks(df):
 
 
 # Update the upload function to use validation
-def upload_to_hopsworks(df, feature_group_name="air_quality_features", version=1):
+def upload_to_hopsworks(df, feature_group_name="karachi_air_quality_features", version=1):
     """
     Upload processed data to Hopsworks Feature Store
 
@@ -996,7 +996,7 @@ def upload_to_hopsworks(df, feature_group_name="air_quality_features", version=1
         fg_params = {
             "name": feature_group_name,
             "version": version,
-            "primary_key": ["id"],
+            "primary_key": ["datetime_utc"],
             "description": "Air Quality data with calculated AQI (US EPA 1-500 scale) and engineered features",
             "online_enabled": False
         }
@@ -1036,7 +1036,7 @@ def upload_to_hopsworks(df, feature_group_name="air_quality_features", version=1
         return None
 
 
-def fetch_from_hopsworks(feature_group_name="air_quality_features", version=1):
+def fetch_from_hopsworks(feature_group_name="karachi_air_quality_features", version=1):
     """
     Fetch data from Hopsworks Feature Store for model training
 
@@ -1243,4 +1243,5 @@ if __name__ == "__main__":
     print("5. ⏭️  Ready for Part 3: Model Training & Deployment")
 
     print("="*70)
+
 
