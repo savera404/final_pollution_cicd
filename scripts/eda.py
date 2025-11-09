@@ -743,32 +743,15 @@ def validate_dataframe_for_hopsworks(df):
 
 
 # Update the upload function to use validation
+#This function uploads your processed and validated air quality dataset (after feature engineering and AQI calculation) to the Hopsworks Feature Store, where it can be reused for training
 def upload_to_hopsworks(df, feature_group_name="karachi_air_quality_features", version=1):
-    """
-    Upload processed data to Hopsworks Feature Store
 
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Processed data with all features and AQI
-    feature_group_name : str
-        Name for the feature group
-    version : int
-        Version number
-
-    Returns:
-    --------
-    feature_group : Hopsworks feature group object
-    """
-    print("\n" + "="*70)
-    print("UPLOADING TO HOPSWORKS FEATURE STORE")
-    print("="*70)
 
     try:
         import hopsworks
         import os
 
-        print("\n🔐 Connecting to Hopsworks...")
+        print("\n Connecting to Hopsworks...")
 
         # # Login to Hopsworks
         # project = hopsworks.login(api_key_value=os.getenv("HOPSWORKS_API_KEY"))
@@ -776,43 +759,35 @@ def upload_to_hopsworks(df, feature_group_name="karachi_air_quality_features", v
             project="pollution_cicd",
             api_key_value=os.getenv("HOPSWORKS_API_KEY")
          )
-        print(f"   ✓ Connected to project: {project.name}")
+        print(f"    Connected to project: {project.name}")
 
         # Get feature store
         fs = project.get_feature_store()
         print(f"   ✓ Accessed feature store")
 
-        # CRITICAL: Validate and prepare dataframe
-        print(f"\n🔍 Validating DataFrame before upload...")
+        #  Validate and prepare dataframe before uploading
+        print(f"\n Validating DataFrame before upload...")
         df_upload = validate_dataframe_for_hopsworks(df)
 
-        # # Add unique ID if not present
-        # if 'id' not in df_upload.columns:
-        #     df_upload.insert(0, 'id', range(1, len(df_upload) + 1))
-        #     print(f"   ✓ Added unique ID column")
-
+      
         # Convert datetime to timestamp (int64) for better compatibility
         if 'datetime_utc' in df_upload.columns:
-            # # Convert to pandas datetime first if not already
-            # df_upload['datetime_utc'] = pd.to_datetime(df_upload['datetime_utc'], errors='coerce')
-            # # Convert to Unix timestamp (milliseconds)
-            # df_upload['datetime_utc'] = df_upload['datetime_utc'].astype('int64') // 10**6
-            # Convert only if needed
+
             if not np.issubdtype(df_upload['datetime_utc'].dtype, np.number):
                 df_upload['datetime_utc'] = pd.to_datetime(df_upload['datetime_utc'], errors='coerce')
                 df_upload = df_upload.dropna(subset=['datetime_utc'])
                 df_upload['datetime_utc'] = (df_upload['datetime_utc'].astype('int64') // 10**6).astype('int64')
-                print(f"   ✓ Converted datetime_utc to timestamp")
+                print(f"    Converted datetime_utc to timestamp")
             else:
-                print(f"   ⚠️ datetime_utc already numeric, skipping reconversion")
+                print(f"    datetime_utc already numeric, skipping reconversion")
     
-                print(f"   ✓ Converted datetime to timestamp")
+                print(f"    Converted datetime to timestamp")
 
         # Handle categorical columns - convert to string explicitly
         categorical_cols = df_upload.select_dtypes(include=['object', 'category']).columns.tolist()
         for col in categorical_cols:
             df_upload[col] = df_upload[col].fillna('unknown').astype(str)
-            print(f"   ✓ Converted categorical column: {col}")
+            print(f"    Converted categorical column: {col}")
 
         # Ensure all numeric columns are proper numeric types
         numeric_cols = df_upload.select_dtypes(include=[np.number]).columns.tolist()
@@ -835,7 +810,7 @@ def upload_to_hopsworks(df, feature_group_name="karachi_air_quality_features", v
             df_upload = df_upload.drop_duplicates()
             print(f"   ✓ Removed duplicate rows")
 
-        print(f"\n📤 Uploading data...")
+        print(f"\n Uploading data...")
         print(f"   • Feature group name: {feature_group_name}")
         print(f"   • Version: {version}")
         print(f"   • Rows: {len(df_upload)}")
@@ -858,10 +833,10 @@ def upload_to_hopsworks(df, feature_group_name="karachi_air_quality_features", v
         feature_group = fs.get_or_create_feature_group(**fg_params)
 
         # Insert data with proper options
-        print(f"\n⏳ Inserting data (this may take a few moments)...")
+        print(f"\n Inserting data (this may take a few moments)...")
         feature_group.insert(df_upload, write_options={"wait_for_job": False})
 
-        print(f"\n✅ DATA SUCCESSFULLY UPLOADED TO HOPSWORKS!")
+        print(f"\n DATA SUCCESSFULLY UPLOADED TO HOPSWORKS!")
         print(f"   Feature group: {feature_group_name} (v{version})")
         print(f"   Note: Data ingestion job is running in background")
         print("="*70)
@@ -869,47 +844,31 @@ def upload_to_hopsworks(df, feature_group_name="karachi_air_quality_features", v
         return feature_group
 
     except ImportError:
-        print("\n❌ ERROR: hopsworks package not installed")
+        print("\n ERROR: hopsworks package not installed")
         print("   Install with: pip install hopsworks")
         return None
 
     except Exception as e:
         import traceback
-        print(f"\n❌ ERROR uploading to Hopsworks: {str(e)}")
-        print("\n🔍 Detailed error traceback:")
+        print(f"\n ERROR uploading to Hopsworks: {str(e)}")
+        print("\n Detailed error traceback:")
         print(traceback.format_exc())
-        print("\n💡 Troubleshooting tips:")
+        print("\n Troubleshooting tips:")
         print("   1. Check if your API key is valid")
         print("   2. Ensure all column dtypes are compatible (int, float, str)")
         print("   3. Check for special characters in column names")
         print("   4. Verify no mixed-type columns exist")
         return None
 
-
+#Retrieves your uploaded dataset from Hopsworks Feature Sto
 def fetch_from_hopsworks(feature_group_name="karachi_air_quality_features", version=1):
-    """
-    Fetch data from Hopsworks Feature Store for model training
 
-    Parameters:
-    -----------
-    feature_group_name : str
-        Name of the feature group
-    version : int
-        Version number
-
-    Returns:
-    --------
-    pandas DataFrame : Retrieved data
-    """
-    print("\n" + "="*70)
-    print("FETCHING DATA FROM HOPSWORKS FEATURE STORE")
-    print("="*70)
 
     try:
         import hopsworks
         import os
 
-        print("\n🔐 Connecting to Hopsworks...")
+        print("\n Connecting to Hopsworks...")
 
         # Login to Hopsworks
         # project = hopsworks.login(api_key_value=os.getenv("HOPSWORKS_API_KEY"))
@@ -922,7 +881,7 @@ def fetch_from_hopsworks(feature_group_name="karachi_air_quality_features", vers
         # Get feature store
         fs = project.get_feature_store()
 
-        print(f"\n📥 Fetching feature group...")
+        print(f"\n Fetching feature group...")
         print(f"   • Feature group name: {feature_group_name}")
         print(f"   • Version: {version}")
 
@@ -935,7 +894,7 @@ def fetch_from_hopsworks(feature_group_name="karachi_air_quality_features", vers
         # Read data
         df = feature_group.read()
 
-        print(f"\n✅ DATA SUCCESSFULLY RETRIEVED!")
+        print(f"\n DATA SUCCESSFULLY RETRIEVED!")
         print(f"   • Rows: {len(df)}")
         print(f"   • Columns: {len(df.columns)}")
         print("="*70)
@@ -943,12 +902,12 @@ def fetch_from_hopsworks(feature_group_name="karachi_air_quality_features", vers
         return df
 
     except ImportError:
-        print("\n❌ ERROR: hopsworks package not installed")
+        print("\n ERROR: hopsworks package not installed")
         print("   Install with: pip install hopsworks")
         return None
 
     except Exception as e:
-        print(f"\n❌ ERROR fetching from Hopsworks: {str(e)}")
+        print(f"\n ERROR fetching from Hopsworks: {str(e)}")
         return None
 
 
@@ -956,68 +915,68 @@ def fetch_from_hopsworks(feature_group_name="karachi_air_quality_features", vers
 # VISUALIZATION FUNCTIONS (Optional but helpful)
 # ============================================================================
 
-def create_eda_visualizations(df, target='aqi', save_plots=False):
-    """
-    Create comprehensive EDA visualizations
+# def create_eda_visualizations(df, target='aqi', save_plots=False):
+#     """
+#     Create comprehensive EDA visualizations
 
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Processed data
-    target : str
-        Target variable name
-    save_plots : bool
-        Whether to save plots to files
-    """
-    print("\n📊 Creating EDA visualizations...")
+#     Parameters:
+#     -----------
+#     df : pandas DataFrame
+#         Processed data
+#     target : str
+#         Target variable name
+#     save_plots : bool
+#         Whether to save plots to files
+#     """
+#     print("\n📊 Creating EDA visualizations...")
 
-    # Set style
-    sns.set_style("whitegrid")
-    plt.rcParams['figure.figsize'] = (15, 10)
+#     # Set style
+#     sns.set_style("whitegrid")
+#     plt.rcParams['figure.figsize'] = (15, 10)
 
-    # 1. Target Distribution
-    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+#     # 1. Target Distribution
+#     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
 
-    # Histogram
-    axes[0, 0].hist(df[target], bins=50, edgecolor='black', alpha=0.7)
-    axes[0, 0].set_title(f'{target.upper()} Distribution', fontsize=14, fontweight='bold')
-    axes[0, 0].set_xlabel('AQI Value')
-    axes[0, 0].set_ylabel('Frequency')
+#     # Histogram
+#     axes[0, 0].hist(df[target], bins=50, edgecolor='black', alpha=0.7)
+#     axes[0, 0].set_title(f'{target.upper()} Distribution', fontsize=14, fontweight='bold')
+#     axes[0, 0].set_xlabel('AQI Value')
+#     axes[0, 0].set_ylabel('Frequency')
 
-    # Box plot
-    axes[0, 1].boxplot(df[target])
-    axes[0, 1].set_title(f'{target.upper()} Box Plot', fontsize=14, fontweight='bold')
-    axes[0, 1].set_ylabel('AQI Value')
+#     # Box plot
+#     axes[0, 1].boxplot(df[target])
+#     axes[0, 1].set_title(f'{target.upper()} Box Plot', fontsize=14, fontweight='bold')
+#     axes[0, 1].set_ylabel('AQI Value')
 
-    # Q-Q plot
-    stats.probplot(df[target], dist="norm", plot=axes[1, 0])
-    axes[1, 0].set_title('Q-Q Plot', fontsize=14, fontweight='bold')
+#     # Q-Q plot
+#     stats.probplot(df[target], dist="norm", plot=axes[1, 0])
+#     axes[1, 0].set_title('Q-Q Plot', fontsize=14, fontweight='bold')
 
-    # AQI Category Distribution
-    if 'aqi_category' in df.columns:
-        df['aqi_category'].value_counts().sort_index().plot(kind='bar', ax=axes[1, 1])
-        axes[1, 1].set_title('AQI Category Distribution', fontsize=14, fontweight='bold')
-        axes[1, 1].set_xlabel('Category')
-        axes[1, 1].set_ylabel('Count')
-        axes[1, 1].tick_params(axis='x', rotation=45)
+#     # AQI Category Distribution
+#     if 'aqi_category' in df.columns:
+#         df['aqi_category'].value_counts().sort_index().plot(kind='bar', ax=axes[1, 1])
+#         axes[1, 1].set_title('AQI Category Distribution', fontsize=14, fontweight='bold')
+#         axes[1, 1].set_xlabel('Category')
+#         axes[1, 1].set_ylabel('Count')
+#         axes[1, 1].tick_params(axis='x', rotation=45)
 
-    plt.tight_layout()
-    if save_plots:
-        plt.savefig('eda_target_distribution.png', dpi=300, bbox_inches='tight')
-    plt.show()
+#     plt.tight_layout()
+#     if save_plots:
+#         plt.savefig('eda_target_distribution.png', dpi=300, bbox_inches='tight')
+#     plt.show()
 
-    # 2. Correlation Heatmap
-    numeric_cols = df.select_dtypes(include=[np.number]).columns[:15]  # Top 15 features
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(df[numeric_cols].corr(), annot=True, fmt='.2f', cmap='coolwarm',
-                center=0, square=True, linewidths=1)
-    plt.title('Feature Correlation Heatmap', fontsize=16, fontweight='bold')
-    plt.tight_layout()
-    if save_plots:
-        plt.savefig('eda_correlation_heatmap.png', dpi=300, bbox_inches='tight')
-    plt.show()
+#     # 2. Correlation Heatmap
+#     numeric_cols = df.select_dtypes(include=[np.number]).columns[:15]  # Top 15 features
+#     plt.figure(figsize=(12, 10))
+#     sns.heatmap(df[numeric_cols].corr(), annot=True, fmt='.2f', cmap='coolwarm',
+#                 center=0, square=True, linewidths=1)
+#     plt.title('Feature Correlation Heatmap', fontsize=16, fontweight='bold')
+#     plt.tight_layout()
+#     if save_plots:
+#         plt.savefig('eda_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+#     plt.show()
 
-    print("   ✓ Visualizations created!")
+#     print("   ✓ Visualizations created!")
 
 
 # ============================================================================
@@ -1025,20 +984,7 @@ def create_eda_visualizations(df, target='aqi', save_plots=False):
 # ============================================================================
 
 def complete_eda_and_upload_pipeline(df_processed, selected_features_count=20):
-    """
-    Complete pipeline: EDA → Feature Selection → Hopsworks Upload
 
-    Parameters:
-    -----------
-    df_processed : pandas DataFrame
-        Processed data from Part 1
-    selected_features_count : int
-        Number of features to select
-
-    Returns:
-    --------
-    tuple : (selected_features, feature_group)
-    """
     # Step 1: Comprehensive EDA
     insights = perform_comprehensive_eda(df_processed, target='aqi')
 
@@ -1050,11 +996,6 @@ def complete_eda_and_upload_pipeline(df_processed, selected_features_count=20):
     )
 
     # Step 3: Prepare final dataset with selected features
-    # final_cols = ['id'] if 'id' in df_processed.columns else []
-    # final_cols += ['datetime_utc'] if 'datetime_utc' in df_processed.columns else []
-    # final_cols += selected_features + ['aqi', 'aqi_category', 'dominant_pollutant']
-
-    # df_final = df_processed[final_cols].copy()
 
     # Prepare final columns (no need for 'id' anymore)
     final_cols = ['datetime_utc'] if 'datetime_utc' in df_processed.columns else []
@@ -1063,7 +1004,7 @@ def complete_eda_and_upload_pipeline(df_processed, selected_features_count=20):
     df_final = df_processed[final_cols].copy()
 
 
-    print(f"\n📦 Final dataset prepared with {len(df_final.columns)} columns")
+    print(f"\n Final dataset prepared with {len(df_final.columns)} columns")
 
     # Step 4: Upload to Hopsworks
     feature_group = upload_to_hopsworks(
@@ -1075,13 +1016,12 @@ def complete_eda_and_upload_pipeline(df_processed, selected_features_count=20):
     return selected_features, feature_group
 
 
-# ============================================================================
+
 # EXAMPLE USAGE
 # ============================================================================
 
 if __name__ == "__main__":
-    # Assuming you have df_processed from Part 1
-    # df_processed = preprocess_air_quality_pipeline(df_processed)
+
 
     # Run complete EDA and upload pipeline
     selected_features, feature_group = complete_eda_and_upload_pipeline(
@@ -1093,13 +1033,14 @@ if __name__ == "__main__":
     print("PART 2 COMPLETE - Ready for Model Training!")
     print("="*70)
     print("\nNext steps:")
-    print("1. ✅ Data preprocessed and cleaned")
-    print("2. ✅ Comprehensive EDA performed")
-    print("3. ✅ Best features selected")
-    print("4. ✅ Data uploaded to Hopsworks Feature Store")
-    print("5. ⏭️  Ready for Part 3: Model Training & Deployment")
+    print("1.  Data preprocessed and cleaned")
+    print("2.  Comprehensive EDA performed")
+    print("3.  Best features selected")
+    print("4.  Data uploaded to Hopsworks Feature Store")
+    print("5.   Ready for Part 3: Model Training & Deployment")
 
     print("="*70)
+
 
 
 
