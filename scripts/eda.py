@@ -388,11 +388,8 @@ if __name__ == "__main__":
 #EDA AND FEATURE SELECTION
 
 
-"""
-AQI Prediction Pipeline - Part 2: EDA & Hopsworks Integration
-================================================================
-This script performs comprehensive EDA and uploads data to Hopsworks Feature Store
-"""
+
+#Part 2: EDA & Hopsworks Integration
 
 import pandas as pd
 import numpy as np
@@ -404,32 +401,16 @@ from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_reg
 import warnings
 warnings.filterwarnings('ignore')
 
-# ============================================================================
+
 # EXPLORATORY DATA ANALYSIS (EDA)
-# ============================================================================
+
 
 def perform_comprehensive_eda(df, target='aqi'):
-    """
-    Perform comprehensive EDA to understand data patterns and relationships
 
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Processed air quality data
-    target : str
-        Target variable name (default: 'aqi')
-
-    Returns:
-    --------
-    dict : EDA insights and recommendations
-    """
-    print("\n" + "="*70)
-    print("EXPLORATORY DATA ANALYSIS (EDA)")
-    print("="*70)
 
     insights = {}
 
-    # 1. Basic Statistics
+    # Basic Statistics
     print("\n📊 1. BASIC STATISTICS")
     print("-" * 70)
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -440,8 +421,8 @@ def perform_comprehensive_eda(df, target='aqi'):
     insights['numeric_features'] = numeric_cols
     insights['target_stats'] = df[target].describe().to_dict()
 
-    # 2. Distribution Analysis
-    print("\n📈 2. DISTRIBUTION ANALYSIS")
+    # Distribution Analysis, Measures skewness — how asymmetric the data distribution is.
+    print("\n 2. DISTRIBUTION ANALYSIS")
     print("-" * 70)
 
     # Check skewness
@@ -459,8 +440,8 @@ def perform_comprehensive_eda(df, target='aqi'):
     print(f"   - Skewness: {df[target].skew():.2f}")
     print(f"   - Kurtosis: {df[target].kurtosis():.2f}")
 
-    # 3. Missing Values Analysis
-    print("\n🔍 3. MISSING VALUES ANALYSIS")
+    # Missing Values Analysis
+    print("\n 3. MISSING VALUES ANALYSIS")
     print("-" * 70)
     missing = df.isnull().sum()
     if missing.sum() == 0:
@@ -472,8 +453,8 @@ def perform_comprehensive_eda(df, target='aqi'):
 
     insights['missing_values'] = missing.to_dict()
 
-    # 4. Correlation Analysis
-    print("\n🔗 4. CORRELATION ANALYSIS")
+    # Correlation Analysis
+    print("\n 4. CORRELATION ANALYSIS")
     print("-" * 70)
 
     # Correlation with target
@@ -487,7 +468,7 @@ def perform_comprehensive_eda(df, target='aqi'):
     insights['top_correlations'] = top_corr.to_dict()
 
     # Identify multicollinearity
-    print("\n   🔴 Checking for multicollinearity (correlation > 0.9):")
+    print("\n  Checking for multicollinearity (correlation > 0.9):")
     corr_matrix = df[numeric_cols].corr()
     high_corr_pairs = []
 
@@ -505,12 +486,12 @@ def perform_comprehensive_eda(df, target='aqi'):
             print(f"   ⚠️  {pair['feature1']} <-> {pair['feature2']}: {pair['correlation']:.3f}")
         print(f"\n   💡 Recommendation: Consider removing one feature from highly correlated pairs")
     else:
-        print("   ✓ No severe multicollinearity detected")
+        print("    No severe multicollinearity detected")
 
     insights['high_correlation_pairs'] = high_corr_pairs
 
-    # 5. Outlier Detection
-    print("\n📉 5. OUTLIER DETECTION (IQR Method)")
+    #Outlier Detection
+    print("\n 5. OUTLIER DETECTION (IQR Method)")
     print("-" * 70)
 
     outlier_counts = {}
@@ -526,19 +507,19 @@ def perform_comprehensive_eda(df, target='aqi'):
 
     insights['outlier_counts'] = outlier_counts
 
-    # 6. Feature Importance (Statistical Tests)
-    print("\n⭐ 6. FEATURE IMPORTANCE ANALYSIS")
+    # Feature Importance (Statistical Tests)
+    print("\n 6. FEATURE IMPORTANCE ANALYSIS")
     print("-" * 70)
 
-    # Prepare features for analysis (exclude non-numeric and target)
+    # Prepare features for analysis
     feature_cols = [col for col in numeric_cols if col != target and col not in
                     ['aqi_pm2_5', 'aqi_pm10', 'aqi_co', 'aqi_no2', 'aqi_o3', 'aqi_so2']]
 
     X = df[feature_cols].fillna(0)
     y = df[target]
 
-    # F-statistic based selection
-    print("\n   📊 F-statistic based feature importance:")
+    # F-statistic based selection, Measures linear relationship strength between each feature and target.
+    print("\n  F-statistic based feature importance:")
     selector_f = SelectKBest(score_func=f_regression, k='all')
     selector_f.fit(X, y)
 
@@ -551,7 +532,7 @@ def perform_comprehensive_eda(df, target='aqi'):
     for idx, row in f_scores.head(15).iterrows():
         print(f"   {row['feature']:30s}: {row['f_score']:10.2f}")
 
-    # Mutual Information based selection
+    # mutual Information based selection, Measures nonlinear dependency between each feature and target.
     print("\n   🔍 Mutual Information based feature importance:")
     mi_scores = mutual_info_regression(X, y, random_state=42)
 
@@ -567,36 +548,19 @@ def perform_comprehensive_eda(df, target='aqi'):
     insights['f_scores'] = f_scores.to_dict('records')
     insights['mi_scores'] = mi_scores_df.to_dict('records')
 
-    print("\n✅ EDA COMPLETE")
-    print("="*70)
+    print("\n EDA COMPLETE")
 
     return insights
 
 
-# ============================================================================
 # FEATURE SELECTION
 # ============================================================================
 
 def select_best_features(df, target='aqi', n_features=20):
-    """
-    Select the best features for model training using multiple methods
 
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Processed data with all features
-    target : str
-        Target variable name
-    n_features : int
-        Number of top features to select
 
-    Returns:
-    --------
-    list : Selected feature names
-    """
-    print("\n" + "="*70)
     print("FEATURE SELECTION")
-    print("="*70)
+
 
     # Get numeric columns
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -605,95 +569,78 @@ def select_best_features(df, target='aqi', n_features=20):
     exclude_cols = [target, 'aqi_pm2_5', 'aqi_pm10', 'aqi_co', 'aqi_no2', 'aqi_o3', 'aqi_so2']
     feature_cols = [col for col in numeric_cols if col not in exclude_cols]
 
-    print(f"\n📊 Total available features: {len(feature_cols)}")
-    print(f"🎯 Selecting top {n_features} features...\n")
+    print(f"\n Total available features: {len(feature_cols)}")
+    print(f"  Selecting top {n_features} features...\n")
 
     X = df[feature_cols].fillna(0)
     y = df[target]
-
-    # Method 1: F-statistic
+#Run three selection methods
+    #  F-statistic
     selector_f = SelectKBest(score_func=f_regression, k=min(n_features, len(feature_cols)))
     selector_f.fit(X, y)
     f_features = [feature_cols[i] for i in selector_f.get_support(indices=True)]
 
-    # Method 2: Mutual Information
+    #  Mutual Information
     mi_scores = mutual_info_regression(X, y, random_state=42)
     mi_features = pd.Series(mi_scores, index=feature_cols).nlargest(n_features).index.tolist()
 
-    # Method 3: Correlation
+    #  Correlation
     correlations = X.corrwith(y).abs().nlargest(n_features).index.tolist()
 
-    # Combine all methods (union of top features)
+    # Combine all results
     selected_features = list(set(f_features + mi_features + correlations))
 
-    print("🔹 Feature Selection Methods:")
+    print(" Feature Selection Methods:")
     print(f"   • F-statistic top features: {len(f_features)}")
     print(f"   • Mutual Information top features: {len(mi_features)}")
     print(f"   • Correlation top features: {len(correlations)}")
-    print(f"\n✅ Final selected features: {len(selected_features)}")
+    print(f"\n Final selected features: {len(selected_features)}")
 
     # Ensure critical pollutant features are included
     critical_features = ['pm2_5', 'pm10', 'no2', 'co', 'o3', 'so2']
     for feat in critical_features:
         if feat in df.columns and feat not in selected_features:
             selected_features.append(feat)
-            print(f"   ➕ Added critical feature: {feat}")
+            print(f"  Added critical feature: {feat}")
 
-    print(f"\n📋 Final feature list ({len(selected_features)} features):")
+    print(f"\n Final feature list ({len(selected_features)} features):")
     for i, feat in enumerate(sorted(selected_features), 1):
         print(f"   {i:2d}. {feat}")
 
-    print("\n" + "="*70)
+
 
     return selected_features
 
 
-# ============================================================================
+
 # DATA VALIDATION FOR HOPSWORKS
 # ============================================================================
-
+#Before uploading data to Hopsworks, this function cleans and standardizes the DataFrame to avoid upload errors.
 def validate_dataframe_for_hopsworks(df):
-    """
-    Validate and prepare DataFrame for Hopsworks upload
 
-    This function checks for common issues that cause Hopsworks upload failures
-    and fixes them automatically.
-
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        DataFrame to validate and prepare
-
-    Returns:
-    --------
-    pandas DataFrame : Validated and prepared DataFrame
-    """
-    print("\n" + "="*70)
-    print("VALIDATING DATAFRAME FOR HOPSWORKS")
-    print("="*70)
 
     df_clean = df.copy()
     issues_fixed = []
 
-    # 1. Check for MultiIndex
+    # Check for MultiIndex
     if isinstance(df_clean.index, pd.MultiIndex):
         print("⚠️  Issue: MultiIndex detected")
         df_clean = df_clean.reset_index(drop=True)
         issues_fixed.append("Reset MultiIndex")
 
-    # 2. Check for MultiIndex columns
+    # Check for MultiIndex columns
     if isinstance(df_clean.columns, pd.MultiIndex):
         print("⚠️  Issue: MultiIndex columns detected")
         df_clean.columns = ['_'.join(map(str, col)).strip() for col in df_clean.columns.values]
         issues_fixed.append("Flattened MultiIndex columns")
 
-    # 3. Check for duplicate column names
+    # Check for duplicate column names
     if df_clean.columns.duplicated().any():
         print("⚠️  Issue: Duplicate column names detected")
         df_clean = df_clean.loc[:, ~df_clean.columns.duplicated()]
         issues_fixed.append("Removed duplicate columns")
 
-    # 4. Check for mixed types in columns
+    # Check for mixed types in columns
     print("\n🔍 Checking column data types...")
     for col in df_clean.columns:
         # Get unique types in column
@@ -709,31 +656,31 @@ def validate_dataframe_for_hopsworks(df):
                     df_clean[col] = df_clean[col].astype(str)
                     issues_fixed.append(f"Converted '{col}' to string")
 
-    # 5. Handle datetime columns
+    # Handle datetime columns
     datetime_cols = df_clean.select_dtypes(include=['datetime64']).columns
     if len(datetime_cols) > 0:
-        print(f"\n📅 Processing {len(datetime_cols)} datetime columns...")
+        print(f"\n Processing {len(datetime_cols)} datetime columns...")
         for col in datetime_cols:
             # Convert to Unix timestamp (milliseconds since epoch)
             df_clean[col] = df_clean[col].astype('int64') // 10**6
             issues_fixed.append(f"Converted '{col}' to timestamp")
 
-    # 6. Handle categorical columns
+    #Handle categorical columns
     categorical_cols = df_clean.select_dtypes(include=['category']).columns
     if len(categorical_cols) > 0:
-        print(f"\n🏷️  Processing {len(categorical_cols)} categorical columns...")
+        print(f"\n  Processing {len(categorical_cols)} categorical columns...")
         for col in categorical_cols:
             df_clean[col] = df_clean[col].astype(str)
             issues_fixed.append(f"Converted '{col}' category to string")
 
-    # 7. Handle object columns (ensure they're all strings)
+    # Handle object columns (ensure they are all strings)
     object_cols = df_clean.select_dtypes(include=['object']).columns
     if len(object_cols) > 0:
         print(f"\n📝 Processing {len(object_cols)} object columns...")
         for col in object_cols:
             df_clean[col] = df_clean[col].fillna('unknown').astype(str)
 
-    # 8. Ensure numeric columns are float64 or int64
+    #Ensure numeric columns are float64 or int64
     numeric_cols = df_clean.select_dtypes(include=[np.number]).columns
     for col in numeric_cols:
         if df_clean[col].dtype not in ['int64', 'float64']:
@@ -742,10 +689,10 @@ def validate_dataframe_for_hopsworks(df):
             else:
                 df_clean[col] = df_clean[col].astype('float64')
 
-    # 9. Handle NaN values
+    # Handle NaN values
     nan_count = df_clean.isnull().sum().sum()
     if nan_count > 0:
-        print(f"\n⚠️  Found {nan_count} NaN values, filling with defaults...")
+        print(f"\n Found {nan_count} NaN values, filling with defaults...")
         for col in df_clean.columns:
             if df_clean[col].dtype in ['float64', 'int64']:
                 df_clean[col] = df_clean[col].fillna(0)
@@ -753,26 +700,26 @@ def validate_dataframe_for_hopsworks(df):
                 df_clean[col] = df_clean[col].fillna('unknown')
         issues_fixed.append("Filled NaN values")
 
-    # 10. Check for infinity values
+    # Check for infinity values
     numeric_cols = df_clean.select_dtypes(include=[np.number]).columns
     for col in numeric_cols:
         inf_count = np.isinf(df_clean[col]).sum()
         if inf_count > 0:
-            print(f"⚠️  Found {inf_count} infinity values in '{col}'")
+            print(f" Found {inf_count} infinity values in '{col}'")
             df_clean[col] = df_clean[col].replace([np.inf, -np.inf], np.nan).fillna(0)
             issues_fixed.append(f"Replaced infinity in '{col}'")
 
-    # 11. Validate column names (no special characters except underscore)
+    # Validate column names (no special characters except underscore)
     invalid_cols = [col for col in df_clean.columns if not col.replace('_', '').isalnum()]
     if invalid_cols:
-        print(f"\n⚠️  Invalid column names detected: {invalid_cols}")
+        print(f"\n Invalid column names detected: {invalid_cols}")
         for col in invalid_cols:
             new_col = ''.join(c if c.isalnum() or c == '_' else '_' for c in col)
             df_clean = df_clean.rename(columns={col: new_col})
         issues_fixed.append("Sanitized column names")
 
     # Final validation
-    print(f"\n✅ VALIDATION COMPLETE")
+    print(f"\nVALIDATION COMPLETE")
     if issues_fixed:
         print(f"\n🔧 Issues fixed ({len(issues_fixed)}):")
         for i, issue in enumerate(issues_fixed, 1):
@@ -780,7 +727,7 @@ def validate_dataframe_for_hopsworks(df):
     else:
         print("   No issues found - DataFrame is ready!")
 
-    print(f"\n📊 Final DataFrame Summary:")
+    print(f"\n Final DataFrame Summary:")
     print(f"   • Shape: {df_clean.shape}")
     print(f"   • Columns: {len(df_clean.columns)}")
     print(f"   • Data types:")
@@ -790,7 +737,7 @@ def validate_dataframe_for_hopsworks(df):
     print(f"   • Missing values: {df_clean.isnull().sum().sum()}")
     print(f"   • Duplicate rows: {df_clean.duplicated().sum()}")
 
-    print("="*70)
+ 
 
     return df_clean
 
@@ -1153,6 +1100,7 @@ if __name__ == "__main__":
     print("5. ⏭️  Ready for Part 3: Model Training & Deployment")
 
     print("="*70)
+
 
 
 
