@@ -35,7 +35,7 @@ def fetch_data(start, end):
         })
     return pd.DataFrame(records)
 
-# === Fetch for 2 years in 4 parts (6 months each) ===
+# fetch for 2 years in 4 parts (6 months each)
 end_time = int(time.time())  # now
 part3_end = int((datetime.now() - timedelta(days=180)).timestamp())
 part2_end = int((datetime.now() - timedelta(days=365)).timestamp())
@@ -44,26 +44,26 @@ start_time = int((datetime.now() - timedelta(days=730)).timestamp())
 
 print("📘 Fetching 2 years of historical air pollution data (3-hour interval)...")
 
-# === Call 4 times (each 6 months) ===
+# call 4 times (each 6 months) ===
 df1 = fetch_data(start_time, part1_end)
 df2 = fetch_data(part1_end, part2_end)
 df3 = fetch_data(part2_end, part3_end)
 df4 = fetch_data(part3_end, end_time)
 
-# === Combine all ===
+# combine all 4 parts
 df = pd.concat([df1, df2, df3, df4], ignore_index=True)
 df.drop_duplicates(subset="datetime_utc", inplace=True)
 df.sort_values("datetime_utc", inplace=True)
 df.reset_index(drop=True, inplace=True)
 
-print(f"📊 Total records before filtering: {len(df)}")
+print(f" Total records before filtering: {len(df)}")
 
-# === Keep only every 3-hour record ===
-df = df[df.index % 2 == 0]  # keeps every 3rd record ≈ every 3 hours
+# we will keep every 3-hour record 
+df = df[df.index % 2 == 0]  
 
-print(f"📈 Total records after 3-hour interval filtering: {len(df)}")
+print(f" Total records after 3-hour interval filtering: {len(df)}")
 
-# === Save to CSV ===
+# save to CSV 
 file_path = "data/2_years.csv"
 df.to_csv(file_path, index=False)
 print(f"✅ 2-year (3-hour interval) data saved to: {file_path}")
