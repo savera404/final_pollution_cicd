@@ -13,11 +13,11 @@ API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
 
 
-# === Ensure output folder exists ===
+# the csv file will be in the data folder.
 os.makedirs("data", exist_ok=True)
 
 def fetch_data(start, end):
-    """Fetch air pollution data between two UNIX timestamps"""
+    # fetch air pollution data between two timestamps
     url = f"http://api.openweathermap.org/data/2.5/air_pollution/history?lat={LAT}&lon={LON}&start={start}&end={end}&appid={API_KEY}"
     response = requests.get(url)
     if response.status_code != 200:
