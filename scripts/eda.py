@@ -1,43 +1,19 @@
-############ DATA CLEANING ###################################
 
 
 
-"""
-AQI Prediction Pipeline - Part 1: Data Preprocessing & US EPA Conversion
-=========================================================================
-This script handles data cleaning, US EPA AQI conversion (1-500 scale),
-and feature engineering for air quality prediction.
-"""
 
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# ============================================================================
 # STEP 1: US EPA AQI CONVERSION FUNCTIONS (1-500 Scale)
-# ============================================================================
 
+#this function converts a pollutant’s raw concentration (µg/m³) into AQI value based on US EPA standards.
 def calculate_aqi_single_pollutant(concentration, pollutant):
-    """
-    Calculate AQI for a single pollutant using US EPA breakpoints (1-500 scale)
-
-    Parameters:
-    -----------
-    concentration : float
-        Pollutant concentration in µg/m³
-    pollutant : str
-        Name of pollutant ('pm2_5', 'pm10', 'o3', 'no2', 'so2', 'co')
-
-    Returns:
-    --------
-    float : AQI value (1-500)
-    """
-
+   
     # US EPA AQI Breakpoints [C_low, C_high, AQI_low, AQI_high]
-    # Reference: https://www.airnow.gov/aqi/aqi-basics/
-
     breakpoints = {
-        'pm2_5': [  # 24-hour average in µg/m³
+        'pm2_5': [  
             (0.0, 12.0, 0, 50),
             (12.1, 35.4, 51, 100),
             (35.5, 55.4, 101, 150),
@@ -46,7 +22,7 @@ def calculate_aqi_single_pollutant(concentration, pollutant):
             (250.5, 350.4, 301, 400),
             (350.5, 500.4, 401, 500)
         ],
-        'pm10': [  # 24-hour average in µg/m³
+        'pm10': [  
             (0, 54, 0, 50),
             (55, 154, 51, 100),
             (155, 254, 101, 150),
@@ -55,7 +31,7 @@ def calculate_aqi_single_pollutant(concentration, pollutant):
             (425, 504, 301, 400),
             (505, 604, 401, 500)
         ],
-        'o3': [  # 8-hour average in ppb (need to convert from µg/m³)
+        'o3': [ 
             (0, 54, 0, 50),
             (55, 70, 51, 100),
             (71, 85, 101, 150),
@@ -64,7 +40,7 @@ def calculate_aqi_single_pollutant(concentration, pollutant):
             (201, 404, 301, 400),
             (405, 604, 401, 500)
         ],
-        'no2': [  # 1-hour average in ppb
+        'no2': [  
             (0, 53, 0, 50),
             (54, 100, 51, 100),
             (101, 360, 101, 150),
@@ -73,7 +49,7 @@ def calculate_aqi_single_pollutant(concentration, pollutant):
             (1250, 1649, 301, 400),
             (1650, 2049, 401, 500)
         ],
-        'so2': [  # 1-hour average in ppb
+        'so2': [ 
             (0, 35, 0, 50),
             (36, 75, 51, 100),
             (76, 185, 101, 150),
@@ -82,7 +58,7 @@ def calculate_aqi_single_pollutant(concentration, pollutant):
             (605, 804, 301, 400),
             (805, 1004, 401, 500)
         ],
-        'co': [  # 8-hour average in ppm (mg/m³ * 0.873)
+        'co': [  
             (0.0, 4.4, 0, 50),
             (4.5, 9.4, 51, 100),
             (9.5, 12.4, 101, 150),
@@ -96,44 +72,33 @@ def calculate_aqi_single_pollutant(concentration, pollutant):
     if pollutant not in breakpoints:
         return np.nan
 
-    # Convert concentrations for specific pollutants
+    # convert concentrations for specific pollutants
     if pollutant == 'o3':
-        # Convert µg/m³ to ppb: ppb = (µg/m³ × 24.45) / 48
+     
         concentration = (concentration * 24.45) / 48
     elif pollutant == 'no2':
-        # Convert µg/m³ to ppb: ppb = (µg/m³ × 24.45) / 46
+        
         concentration = (concentration * 24.45) / 46
     elif pollutant == 'so2':
-        # Convert µg/m³ to ppb: ppb = (µg/m³ × 24.45) / 64
+       
         concentration = (concentration * 24.45) / 64
     elif pollutant == 'co':
-        # Convert µg/m³ to ppm: ppm = (mg/m³) × 0.873
+       
         concentration = (concentration / 1000) * 0.873
 
-    # Find appropriate breakpoint
+    
     for c_low, c_high, aqi_low, aqi_high in breakpoints[pollutant]:
         if c_low <= concentration <= c_high:
-            # Linear interpolation formula
+            # linear interpolation formula
             aqi = ((aqi_high - aqi_low) / (c_high - c_low)) * (concentration - c_low) + aqi_low
             return round(aqi, 2)
 
     # If concentration exceeds all breakpoints, return 500 (hazardous)
     return 500.0
 
-
+#now that each pollutant’s AQI can be computed, we can calculate an overall AQI for a given timestamp.
 def calculate_overall_aqi(row):
-    """
-    Calculate overall AQI as the maximum of all individual pollutant AQIs
-
-    Parameters:
-    -----------
-    row : pandas Series
-        Row containing pollutant concentrations
-
-    Returns:
-    --------
-    dict : Dictionary with overall AQI and dominant pollutant
-    """
+ 
     pollutants = {
         'pm2_5': row.get('pm2_5', np.nan),
         'pm10': row.get('pm10', np.nan),
@@ -151,7 +116,7 @@ def calculate_overall_aqi(row):
     if not aqi_values:
         return {'aqi': np.nan, 'dominant_pollutant': None}
 
-    # Overall AQI is the maximum of all pollutant AQIs
+    # overall AQI is the maximum of all pollutant AQIs
     dominant_pollutant = max(aqi_values, key=aqi_values.get)
     overall_aqi = aqi_values[dominant_pollutant]
 
@@ -161,52 +126,31 @@ def calculate_overall_aqi(row):
         **{f'aqi_{k}': v for k, v in aqi_values.items()}
     }
 
-# ============================================================================
+
 # STEP 2: DATA CLEANING & PREPROCESSING
-# ============================================================================
-
+# ==========================================================================
+#this function takes one row from your dataset (a single timestamp’s readings)
 def clean_air_quality_data(df):
-    """
-    Clean and preprocess air quality data
 
-    Steps:
-    1. Handle missing values
-    2. Remove duplicates
-    3. Handle outliers
-    4. Validate data ranges
-    5. Convert AQI column if present
-
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Raw air quality data
-
-    Returns:
-    --------
-    pandas DataFrame : Cleaned data
-    """
-    print("=" * 70)
-    print("STARTING DATA CLEANING PROCESS")
-    print("=" * 70)
 
     df_clean = df.copy()
     initial_rows = len(df_clean)
-    print(f"\n📊 Initial dataset size: {initial_rows} rows, {len(df_clean.columns)} columns")
+    print(f"\n Initial dataset size: {initial_rows} rows, {len(df_clean.columns)} columns")
 
-    # 1. Handle datetime
+    # handle datetime
     if 'datetime_utc' in df_clean.columns:
         print("\n⏰ Converting datetime column...")
         df_clean['datetime_utc'] = pd.to_datetime(df_clean['datetime_utc'], errors='coerce')
         df_clean = df_clean.dropna(subset=['datetime_utc'])
         print(f"   ✓ Removed {initial_rows - len(df_clean)} rows with invalid datetime")
 
-    # 2. Remove duplicate timestamps
+    # remove duplicate timestamps
     if 'datetime_utc' in df_clean.columns:
         before_dedup = len(df_clean)
         df_clean = df_clean.drop_duplicates(subset=['datetime_utc'], keep='first')
-        print(f"   ✓ Removed {before_dedup - len(df_clean)} duplicate timestamps")
+        print(f"    Removed {before_dedup - len(df_clean)} duplicate timestamps")
 
-    # 3. Handle negative values (pollutants can't be negative)
+    #  handle negative values (pollutants can't be negative)
     pollutant_cols = ['co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'nh3']
     print(f"\n🔍 Checking for negative values in pollutant columns...")
 
@@ -217,14 +161,14 @@ def clean_air_quality_data(df):
                 print(f"   ⚠️  {col}: Found {negative_count} negative values, setting to 0")
                 df_clean[col] = df_clean[col].clip(lower=0)
 
-    # 4. Handle extreme outliers using IQR method (per pollutant)
+    # handle extreme outliers using IQR method (per pollutant)
     print(f"\n📈 Handling extreme outliers (values beyond 3×IQR)...")
     for col in pollutant_cols:
         if col in df_clean.columns:
             Q1 = df_clean[col].quantile(0.25)
             Q3 = df_clean[col].quantile(0.75)
             IQR = Q3 - Q1
-            lower_bound = Q1 - 3 * IQR  # Using 3×IQR for extreme outliers only
+            lower_bound = Q1 - 3 * IQR  
             upper_bound = Q3 + 3 * IQR
 
             outliers = ((df_clean[col] < lower_bound) | (df_clean[col] > upper_bound)).sum()
@@ -232,8 +176,8 @@ def clean_air_quality_data(df):
                 print(f"   ⚠️  {col}: Capping {outliers} extreme outliers")
                 df_clean[col] = df_clean[col].clip(lower=max(0, lower_bound), upper=upper_bound)
 
-    # 5. Handle missing values
-    print(f"\n🔧 Handling missing values...")
+    # Handle missing values
+    print(f"\n Handling missing values...")
     missing_before = df_clean.isnull().sum().sum()
 
     # For pollutants: Use forward fill then backward fill (reasonable for time series)
@@ -250,7 +194,7 @@ def clean_air_quality_data(df):
     missing_after = df_clean.isnull().sum().sum()
     print(f"   ✓ Total missing values reduced from {missing_before} to {missing_after}")
 
-    # 6. Remove AQI column if present (we'll recalculate it)
+    # remove AQI column if present (we'll recalculate it)
     if 'aqi' in df_clean.columns:
         print(f"\n🗑️  Removing existing 'aqi' column (will be recalculated)")
         df_clean = df_clean.drop(columns=['aqi'])
@@ -262,36 +206,15 @@ def clean_air_quality_data(df):
     return df_clean
 
 
-# ============================================================================
+
 # STEP 3: FEATURE ENGINEERING
 # ============================================================================
 
 def create_features(df):
-    """
-    Create additional features for better AQI prediction
-
-    Features created:
-    - Temporal features (hour, day, month, season)
-    - Pollutant ratios and interactions
-    - Rolling averages
-    - Pollution intensity indicators
-
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Cleaned data with datetime
-
-    Returns:
-    --------
-    pandas DataFrame : Data with engineered features
-    """
-    print("\n" + "=" * 70)
-    print("FEATURE ENGINEERING")
-    print("=" * 70)
 
     df_features = df.copy()
 
-    # 1. Temporal features
+    # Temporal features
     if 'datetime_utc' in df_features.columns:
         print("\n🕐 Creating temporal features...")
         df_features['hour'] = df_features['datetime_utc'].dt.hour
@@ -300,14 +223,14 @@ def create_features(df):
         df_features['month'] = df_features['datetime_utc'].dt.month
         df_features['is_weekend'] = (df_features['day_of_week'] >= 5).astype(int)
 
-        # Season (meteorological seasons)
+        # season 
         df_features['season'] = df_features['month'].apply(
             lambda x: 'winter' if x in [12, 1, 2] else
                      'spring' if x in [3, 4, 5] else
                      'summer' if x in [6, 7, 8] else 'fall'
         )
 
-        # Time of day
+        # time of day
         df_features['time_of_day'] = df_features['hour'].apply(
             lambda x: 'night' if x < 6 or x >= 22 else
                      'morning' if x < 12 else
@@ -316,33 +239,33 @@ def create_features(df):
 
         print(f"   ✓ Created: hour, day_of_week, month, season, time_of_day, is_weekend")
 
-    # 2. Pollutant ratios and interactions
-    print("\n🔬 Creating pollutant interaction features...")
+    # pollutant ratios and interaction, these composite features give the model a broader view of overall air quality.
+    print("\n Creating pollutant interaction features...")
 
     # PM ratio (indicates particle size distribution)
     if 'pm2_5' in df_features.columns and 'pm10' in df_features.columns:
         df_features['pm_ratio'] = df_features['pm2_5'] / (df_features['pm10'] + 1e-6)
         print(f"   ✓ pm_ratio: PM2.5/PM10 ratio")
 
-    # Nitrogen oxides ratio
+    # nitrogen oxides ratio
     if 'no2' in df_features.columns and 'no' in df_features.columns:
         df_features['nox_ratio'] = df_features['no2'] / (df_features['no'] + df_features['no2'] + 1e-6)
         print(f"   ✓ nox_ratio: NO2/(NO+NO2) ratio")
 
-    # Total particulate matter
+    # total particulate matter
     if 'pm2_5' in df_features.columns and 'pm10' in df_features.columns:
         df_features['total_pm'] = df_features['pm2_5'] + df_features['pm10']
         print(f"   ✓ total_pm: Sum of PM2.5 and PM10")
 
-    # Total gaseous pollutants
+    # total gaseous pollutants
     gas_cols = ['co', 'no', 'no2', 'o3', 'so2']
     available_gas = [col for col in gas_cols if col in df_features.columns]
     if available_gas:
         df_features['total_gases'] = df_features[available_gas].sum(axis=1)
-        print(f"   ✓ total_gases: Sum of gaseous pollutants")
+        print(f"    total_gases: Sum of gaseous pollutants")
 
-    # 3. Rolling averages (for temporal patterns)
-    print("\n📊 Creating rolling average features (window=3)...")
+    # rolling averages Smooths short-term noise and highlights trends.
+    print("\n Creating rolling average features (window=3)...")
     pollutant_cols = ['co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10']
 
     for col in pollutant_cols:
@@ -350,18 +273,18 @@ def create_features(df):
             df_features[f'{col}_rolling_3'] = df_features[col].rolling(window=3, min_periods=1).mean()
             print(f"   ✓ {col}_rolling_3: 3-period rolling average")
 
-    # 4. Pollution intensity indicators
-    print("\n⚡ Creating pollution intensity indicators...")
+    # pollution intensity indicators: Creates binary flags (0/1) for whether pollution exceeds safe limits.
+    print("\n Creating pollution intensity indicators...")
 
     if 'pm2_5' in df_features.columns:
         df_features['pm2_5_high'] = (df_features['pm2_5'] > 35.4).astype(int)  # Above Good level
-        print(f"   ✓ pm2_5_high: Binary indicator (>35.4 µg/m³)")
+        print(f"    pm2_5_high: Binary indicator (>35.4 µg/m³)")
 
     if 'pm10' in df_features.columns:
         df_features['pm10_high'] = (df_features['pm10'] > 154).astype(int)  # Above Good level
         print(f"   ✓ pm10_high: Binary indicator (>154 µg/m³)")
 
-    print("\n✅ FEATURE ENGINEERING COMPLETE")
+    print("\n FEATURE ENGINEERING COMPLETE")
     print(f"   Total features: {len(df_features.columns)}")
     print("=" * 70)
 
@@ -1259,6 +1182,7 @@ if __name__ == "__main__":
     print("5. ⏭️  Ready for Part 3: Model Training & Deployment")
 
     print("="*70)
+
 
 
 
