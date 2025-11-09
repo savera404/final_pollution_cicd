@@ -290,45 +290,32 @@ def create_features(df):
 
     return df_features
 
-# ============================================================================
+
 # STEP 4: CALCULATE AQI AND PREPARE FINAL DATASET
 # ============================================================================
 
 def prepare_final_dataset(df):
-    """
-    Calculate AQI values and prepare final dataset for model training
 
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Data with all features
-
-    Returns:
-    --------
-    pandas DataFrame : Final dataset with AQI calculated
-    """
-    print("\n" + "=" * 70)
-    print("CALCULATING AQI VALUES")
-    print("=" * 70)
 
     df_final = df.copy()
 
-    # Calculate individual pollutant AQIs and overall AQI
-    print("\n🎯 Calculating AQI for all pollutants...")
+    # calculate individual pollutant AQIs and overall AQI For each row (time record), it calls your previously defined function calculate_overall_aqi()
+    print("\n Calculating AQI for all pollutants...")
     aqi_results = df_final.apply(calculate_overall_aqi, axis=1)
     aqi_df = pd.DataFrame(aqi_results.tolist())
 
-    # Merge AQI results
+    # merge results
     df_final = pd.concat([df_final, aqi_df], axis=1)
 
-    # Statistics
+    # Shows a quick summary of AQI distribution
     print(f"\n📈 AQI Statistics:")
     print(f"   Mean AQI: {df_final['aqi'].mean():.2f}")
     print(f"   Median AQI: {df_final['aqi'].median():.2f}")
     print(f"   Min AQI: {df_final['aqi'].min():.2f}")
     print(f"   Max AQI: {df_final['aqi'].max():.2f}")
 
-    # AQI categories
+    # Classify AQI into categories
+   
     df_final['aqi_category'] = pd.cut(
         df_final['aqi'],
         bins=[0, 50, 100, 150, 200, 300, 400, 500],
@@ -336,44 +323,30 @@ def prepare_final_dataset(df):
                 'Very Unhealthy', 'Hazardous', 'Beyond Hazardous']
     )
 
-    print(f"\n📊 AQI Category Distribution:")
+    print(f"\n AQI Category Distribution:")
     print(df_final['aqi_category'].value_counts().sort_index())
 
-    print("\n✅ AQI CALCULATION COMPLETE")
+    print("\n AQI CALCULATION COMPLETE")
     print("=" * 70)
 
     return df_final
 
 
-# ============================================================================
+
 # MAIN PIPELINE FUNCTION
 # ============================================================================
-
+#this function ties together all parts of pipeline — it’s the master workflow.
 def preprocess_air_quality_pipeline(df):
-    """
-    Complete preprocessing pipeline for air quality data
-
-    Parameters:
-    -----------
-    df : pandas DataFrame
-        Raw air quality data from OpenWeather API
-
-    Returns:
-    --------
-    pandas DataFrame : Fully processed data ready for model training
-    """
-    print("\n" + "="*70)
-    print("AIR QUALITY DATA PREPROCESSING PIPELINE")
-    print("="*70)
+ 
     print(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    # Step 1: Clean data
+    #  Clean data
     df_clean = clean_air_quality_data(df)
 
-    # Step 2: Feature engineering
+    # Feature engineering
     df_features = create_features(df_clean)
 
-    # Step 3: Calculate AQI
+    # Calculate AQI
     df_final = prepare_final_dataset(df_features)
 
     print(f"\n🎉 PIPELINE COMPLETE!")
@@ -407,14 +380,12 @@ if __name__ == "__main__":
 
     # Save processed data
     # df_processed.to_csv('processed_air_quality_data.csv', index=False)
-    print("\n✅ Data is ready for Hopsworks upload!")
+    print("\n Data is ready for Hopsworks upload!")
 
 
 
 
-################## EDA AND FEATURE SELECTION ###########################
-
-
+#EDA AND FEATURE SELECTION
 
 
 """
@@ -1182,6 +1153,7 @@ if __name__ == "__main__":
     print("5. ⏭️  Ready for Part 3: Model Training & Deployment")
 
     print("="*70)
+
 
 
 
